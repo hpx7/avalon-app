@@ -61,6 +61,15 @@ enum QuestTab {
     CURRENT_QUEST = "Current quest",
 }
 
+const QUEST_TAB_RECORD: Record<QuestAttemptStatus, QuestTab> = {
+    [QuestAttemptStatus.PENDING_PROPOSAL]: QuestTab.CURRENT_QUEST,
+    [QuestAttemptStatus.PENDING_PROPOSAL_VOTES]: QuestTab.CURRENT_QUEST,
+    [QuestAttemptStatus.PROPOSAL_REJECTED]: QuestTab.PREVIOUS_PROPOSAL,
+    [QuestAttemptStatus.PENDING_QUEST_RESULTS]: QuestTab.CURRENT_QUEST,
+    [QuestAttemptStatus.PASSED]: QuestTab.PREVIOUS_QUEST,
+    [QuestAttemptStatus.FAILED]: QuestTab.PREVIOUS_QUEST,
+};
+
 interface IPreviousQuestAttempt {
     tab: JSX.Element;
     display: JSX.Element;
@@ -117,7 +126,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
         HIDE_PREVIOUS_QUEST: "Hide previous quest",
         SHOW_PREVIOUS_QUEST: "Show previous quest",
         TAB_NAVIGATION: "TabNavigation",
-    }
+    };
     private services = getServices(this.context);
 
     public componentDidMount() {
@@ -143,10 +152,9 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                     const prevStatus = NullableValue.of(prevQuestAttempt)
                         .map(({ status }) => status)
                         .getOrUndefined();
-                    NullableValue.of(currentQuest)
-                        .map(questAttempt => prevStatus !== questAttempt.status
-                            ? this.toastQuestStatusChange(questAttempt)
-                            : undefined);
+                    NullableValue.of(currentQuest).map(questAttempt =>
+                        prevStatus !== questAttempt.status ? this.toastQuestStatusChange(questAttempt) : undefined,
+                    );
                 }
             } else {
                 this.toastGameStatusChange(status);
@@ -162,8 +170,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                 return;
             case GameAction.VIEW_QUESTS:
                 if (AsyncLoadedValue.isReady(game)) {
-                    NullableValue.of(game.value.currentQuest)
-                        .map(this.setDocumentTitleBasedOnQuestAttempt);
+                    NullableValue.of(game.value.currentQuest).map(this.setDocumentTitleBasedOnQuestAttempt);
                 } else {
                     this.services.stateService.setDocumentTitle(STRINGS.AVALON);
                 }
@@ -190,9 +197,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                 <div className={styles.content}>
                     <div className={sharedStyles.pageContentWrapper}>
                         <div className={sharedStyles.pageContent}>
-                            <Card elevation={Elevation.THREE}>
-                                {this.renderContent()}
-                            </Card>
+                            <Card elevation={Elevation.THREE}>{this.renderContent()}</Card>
                         </div>
                     </div>
                 </div>
@@ -213,7 +218,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                 {this.renderNavigationButton(GameAction.VIEW_PLAYERS, STRINGS.PLAYERS, IconNames.PEOPLE)}
                 {this.renderNavigationButton(GameAction.VIEW_QUESTS, STRINGS.QUESTS, IconNames.PATH_SEARCH)}
             </>
-        )
+        );
     }
 
     private renderNavigationButton(targetGameAction: GameAction, text: string, icon: IconName) {
@@ -240,14 +245,9 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
             case GameStatus.NOT_STARTED:
                 if (creator === myName) {
                     return (
-                        <GameConfiguration
-                            game={game.value}
-                            playerId={playerId}
-                            gameId={gameId}
-                            history={history}
-                        />
+                        <GameConfiguration game={game.value} playerId={playerId} gameId={gameId} history={history} />
                     );
-                };
+                }
                 return (
                     <div>
                         <H2 className={styles.gameHeader}>{STRINGS.WAITING_FOR_PLAYERS}</H2>
@@ -262,30 +262,11 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
             case GameStatus.IN_PROGRESS:
                 return this.renderInProgressGame(game.value);
             case GameStatus.GOOD_WON:
-                return (
-                    <Callout
-                        icon={IconNames.THUMBS_UP}
-                        title={STRINGS.GOOD_WON}
-                        intent={Intent.SUCCESS}
-                    />
-                );
+                return <Callout icon={IconNames.THUMBS_UP} title={STRINGS.GOOD_WON} intent={Intent.SUCCESS} />;
             case GameStatus.EVIL_WON:
-                return (
-                    <Callout
-                        icon={IconNames.THUMBS_UP}
-                        title={STRINGS.EVIL_WON}
-                        intent={Intent.DANGER}
-                    />
-                );
+                return <Callout icon={IconNames.THUMBS_UP} title={STRINGS.EVIL_WON} intent={Intent.DANGER} />;
             case GameStatus.ASSASSINATING:
-                return (
-                    <Assassination
-                        game={game.value}
-                        playerId={playerId}
-                        playerName={playerName}
-                        gameId={gameId}
-                    />
-                );
+                return <Assassination game={game.value} playerId={playerId} playerName={playerName} gameId={gameId} />;
             default:
                 return assertNever(status);
         }
@@ -328,9 +309,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                             <Tab id={QuestTab.CURRENT_QUEST} title={QuestTab.CURRENT_QUEST} />
                             {prevQuestAttempt.map(attempt => attempt.tab).getOrUndefined()}
                         </Tabs>
-                        <div className={styles.questContent}>
-                            {this.renderQuestContent(game, prevQuestAttempt)}
-                        </div>
+                        <div className={styles.questContent}>{this.renderQuestContent(game, prevQuestAttempt)}</div>
                     </div>
                 );
             default:
@@ -348,11 +327,10 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                 return (
                     <>
                         {this.renderCurrentQuest(game)}
-                        <div className={styles.questActions}>
-                            {this.maybeRenderCurrentQuestActions(game)}
-                        </div>
+                        {this.maybeRenderCurrentQuestAttempt(game)}
+                        <div className={styles.questActions}>{this.maybeRenderCurrentQuestActions(game)}</div>
                     </>
-                )
+                );
             default:
                 return assertNever(selectedTabId);
         }
@@ -360,28 +338,45 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
 
     private handleTabChange = (newTabId: QuestTab) => {
         this.setState({ selectedTabId: newTabId });
-    }
+    };
 
     private maybeRenderPreviousQuestAttempt = (
-        game: IGame, previousQuestAttempt: IQuestAttempt): IPreviousQuestAttempt => {
-        const tabId = previousQuestAttempt.status === QuestAttemptStatus.PROPOSAL_REJECTED
-            ? QuestTab.PREVIOUS_PROPOSAL
-            : QuestTab.PREVIOUS_QUEST;
+        game: IGame,
+        previousQuestAttempt: IQuestAttempt,
+    ): IPreviousQuestAttempt => {
+        const tabId = QUEST_TAB_RECORD[previousQuestAttempt.status];
         return {
             tab: <Tab id={tabId} title={tabId} />,
             display: (
                 <>
-                    <div className={styles.previousQuestTitle}>
-                        {this.getPreviousQuestTitle(previousQuestAttempt)}
-                    </div>
+                    <div className={styles.previousQuestTitle}>{this.getPreviousQuestTitle(previousQuestAttempt)}</div>
                     {this.renderQuestAttemptMetadata(game, previousQuestAttempt)}
-                    {this.renderQuestAttemptVotes(game, previousQuestAttempt)}
+                    {this.renderQuestAttemptVotes(previousQuestAttempt)}
                 </>
-            )
-        }
+            ),
+        };
+    };
+
+    private maybeRenderCurrentQuestAttempt(game: IGame) {
+        return NullableValue.of(game.currentQuest)
+            .map(currentQuest => {
+                switch (currentQuest.status) {
+                    case QuestAttemptStatus.PENDING_PROPOSAL:
+                    case QuestAttemptStatus.PENDING_PROPOSAL_VOTES:
+                        return undefined;
+                    case QuestAttemptStatus.PROPOSAL_REJECTED:
+                    case QuestAttemptStatus.PENDING_QUEST_RESULTS:
+                    case QuestAttemptStatus.PASSED:
+                    case QuestAttemptStatus.FAILED:
+                        return this.renderQuestAttemptVotes(currentQuest);
+                    default:
+                        return assertNever(currentQuest.status);
+                }
+            })
+            .getOrUndefined();
     }
 
-    private renderQuestAttemptVotes(_game: IGame, previousQuestAttempt: IQuestAttempt) {
+    private renderQuestAttemptVotes(previousQuestAttempt: IQuestAttempt) {
         const { votes } = previousQuestAttempt;
         const playerVoteRowStyles = classNames(styles.playerVote, Classes.RUNNING_TEXT);
         const renderedVotes = votes.map((playerVote, index) => {
@@ -395,19 +390,19 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
         });
         const numApproves = votes.filter(({ vote }) => vote === Vote.PASS).length;
         const numRejects = votes.length - numApproves;
-        const voteBreakdown = `( ${pluralize("approve", numApproves, true)} `
-            + `and ${pluralize("reject", numRejects, true)} )`;
+        const voteBreakdown =
+            "( " + pluralize("approve", numApproves, true) + " and " + pluralize("reject", numRejects, true) + " )";
         return (
             <>
                 <div className={styles.proposalVotes}>Proposal votes: {voteBreakdown}</div>
                 {renderedVotes}
             </>
-        )
+        );
     }
 
     private renderQuestHistory(game: IGame) {
         const { questConfigurations, questHistory, currentQuest } = game;
-        const allQuestAttempts = [...questHistory, currentQuest ].filter(NullableValue.isNotNullish);
+        const allQuestAttempts = [...questHistory, currentQuest].filter(NullableValue.isNotNullish);
         return NullableValue.of(questConfigurations)
             .map<JSX.Element | string>(presentQuestConfigurations => {
                 return (
@@ -427,13 +422,15 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                         })}
                     </>
                 );
-            }).getOrDefault(this.renderGameNotStarted(game));
+            })
+            .getOrDefault(this.renderGameNotStarted(game));
     }
 
     private getIntentForAttempt(questAttempts: IQuestAttempt[], roundNumber: number) {
-        const relevantQuest = maxBy(questAttempts.filter(
-            questAttempt => questAttempt.roundNumber === roundNumber),
-            questAttempt => questAttempt.attemptNumber);
+        const relevantQuest = maxBy(
+            questAttempts.filter(questAttempt => questAttempt.roundNumber === roundNumber),
+            questAttempt => questAttempt.attemptNumber,
+        );
         if (relevantQuest == null) {
             return Intent.NONE;
         }
@@ -457,16 +454,14 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
         const { results, status } = questAttempt;
         const numPasses = results.filter(vote => vote === Vote.PASS).length;
         const numFails = results.length - numPasses;
-        const voteBreakdown = `( ${pluralize("pass", numPasses, true)} `
-            + `and ${pluralize("fail", numFails, true)} )`;
+        const voteBreakdown =
+            "( " + pluralize("pass", numPasses, true) + " and " + pluralize("fail", numFails, true) + " )";
         switch (status) {
             case QuestAttemptStatus.PROPOSAL_REJECTED:
                 return (
                     <div className={styles.alert}>
                         <Icon iconSize={12} intent={Intent.DANGER} icon={IconNames.THUMBS_DOWN} />
-                        <div className={styles.danger}>
-                            {STRINGS.PREVIOUS_PROPOSAL_REJECTED}
-                        </div>
+                        <div className={styles.danger}>{STRINGS.PREVIOUS_PROPOSAL_REJECTED}</div>
                     </div>
                 );
             case QuestAttemptStatus.PASSED:
@@ -474,9 +469,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                     <>
                         <div className={styles.alert}>
                             <Icon iconSize={12} intent={Intent.SUCCESS} icon={IconNames.TICK_CIRCLE} />
-                            <div className={styles.success}>
-                                {STRINGS.PREVIOUS_QUEST_PASSED}
-                            </div>
+                            <div className={styles.success}>{STRINGS.PREVIOUS_QUEST_PASSED}</div>
                         </div>
                         <div className={classNames(styles.success, styles.voteBreakdown)}>{voteBreakdown}</div>
                     </>
@@ -486,9 +479,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                     <>
                         <div className={styles.alert}>
                             <Icon iconSize={12} intent={Intent.DANGER} icon={IconNames.BAN_CIRCLE} />
-                            <div className={styles.danger}>
-                                {STRINGS.PREVIOUS_QUEST_FAILED}
-                            </div>
+                            <div className={styles.danger}>{STRINGS.PREVIOUS_QUEST_FAILED}</div>
                         </div>
                         <div className={classNames(styles.danger, styles.voteBreakdown)}>{voteBreakdown}</div>
                     </>
@@ -505,13 +496,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
     }
 
     private renderQuestAttemptMetadata(game: IGame, questAttempt: IQuestAttempt) {
-        const {
-            attemptNumber,
-            roundNumber,
-            leader,
-            members,
-            status,
-        } = questAttempt;
+        const { attemptNumber, roundNumber, leader, members, status } = questAttempt;
         const questContent = TernaryValue.of(status !== QuestAttemptStatus.PENDING_PROPOSAL)
             .ifTrue(
                 <>
@@ -519,16 +504,18 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                     <div className={styles.questParticipants}>
                         <PlayerList players={members} game={game} showKnowledge={false} showMyself={false} />
                     </div>
-                </>
+                </>,
             )
             .get();
         return (
             <div className={styles.questMetadata}>
-                <div>Quest {roundNumber} - Attempt {attemptNumber}</div>
+                <div>
+                    Quest {roundNumber} - Attempt {attemptNumber}
+                </div>
                 <div>Leader: {leader}</div>
                 {questContent}
             </div>
-        )
+        );
     }
 
     private maybeRenderCurrentQuestActions(game: IGame) {
@@ -547,7 +534,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
             myVote,
             myResult,
             remainingVotes,
-            remainingResults
+            remainingResults,
         } = questAttempt;
         const { myName } = game;
         const { STRINGS } = UnconnectedGame;
@@ -575,40 +562,51 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                                     text={STRINGS.REJECT}
                                 />
                             </div>
-                        </div>
-                    )
+                        </div>,
+                    );
             case QuestAttemptStatus.PROPOSAL_REJECTED:
-                return <div>Quest {roundNumber} proposal {attemptNumber} was rejected.</div>;
+                return (
+                    <div>
+                        Quest {roundNumber} proposal {attemptNumber} was rejected.
+                    </div>
+                );
             case QuestAttemptStatus.PENDING_QUEST_RESULTS:
                 return TernaryValue.of(members.includes(myName))
-                    .ifTrue(NullableValue.of(myResult)
-                        .map(this.renderMyVote(true, remainingResults))
-                        .getOrDefault(
-                            <div>
-                                <div className={styles.waitingForVotes}>{STRINGS.QUEST_TITLE}</div>
-                                <div className={styles.voteButtons}>
-                                    <Button
-                                        onClick={this.onVoteOnQuest(game, questAttempt, Vote.PASS)}
-                                        intent={Intent.SUCCESS}
-                                        text={STRINGS.PASS}
-                                    />
-                                    <Button
-                                        onClick={this.onVoteOnQuest(game, questAttempt, Vote.FAIL)}
-                                        intent={Intent.DANGER}
-                                        text={STRINGS.FAIL}
-                                    />
-                                </div>
-                            </div>
-                        )
-                    ).ifFalse(
+                    .ifTrue(
+                        NullableValue.of(myResult)
+                            .map(this.renderMyVote(true, remainingResults))
+                            .getOrDefault(
+                                <div>
+                                    <div className={styles.waitingForVotes}>{STRINGS.QUEST_TITLE}</div>
+                                    <div className={styles.voteButtons}>
+                                        <Button
+                                            onClick={this.onVoteOnQuest(game, questAttempt, Vote.PASS)}
+                                            intent={Intent.SUCCESS}
+                                            text={STRINGS.PASS}
+                                        />
+                                        <Button
+                                            onClick={this.onVoteOnQuest(game, questAttempt, Vote.FAIL)}
+                                            intent={Intent.DANGER}
+                                            text={STRINGS.FAIL}
+                                        />
+                                    </div>
+                                </div>,
+                            ),
+                    )
+                    .ifFalse(
                         <>
                             <div className={styles.waitingForVotes}>{STRINGS.NOT_PART_OF_QUEST}</div>
                             <div className={styles.waitingForVotes}>{STRINGS.WAITING_FOR_QUEST_RESULTS}</div>
-                        </>
-                    ).get();
+                        </>,
+                    )
+                    .get();
             case QuestAttemptStatus.PASSED:
             case QuestAttemptStatus.FAILED:
-                return <div>Quest number {roundNumber} {status}!</div>;
+                return (
+                    <div>
+                        Quest number {roundNumber} {status}!
+                    </div>
+                );
             default:
                 return assertNever(status);
         }
@@ -640,7 +638,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                     onClick={this.onProposeQuest(game, questId)}
                 />
             </div>
-        )
+        );
     }
 
     private maybeRenderProposeQuestError(game: IGame) {
@@ -670,30 +668,32 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                 </div>
             </>
         );
-    }
+    };
 
     private maybeGetProposeQuestErrorMessage(game: IGame) {
         const { questConfigurations, currentQuest, myName } = game;
         const { STRINGS } = UnconnectedGame;
         return NullableValue.of(questConfigurations)
-            .map(actualQuestConfigurations => NullableValue.of(currentQuest)
-                .map(latestQuestAttempt => {
-                    const { roundNumber, leader } = latestQuestAttempt;
-                    if (actualQuestConfigurations.length < roundNumber) {
-                        return `Round ${roundNumber} ${STRINGS.DOES_NOT_EXIST}`;
-                    }
-                    const numPlayersNeededForQuest = actualQuestConfigurations[roundNumber - 1];
-                    const { questMembers } = this.state;
-                    if (leader !== myName) {
-                        return STRINGS.NOT_LEADER_TEXT;
-                    } else if (numPlayersNeededForQuest < questMembers.length) {
-                        return STRINGS.TOO_MANY_QUEST_MEMBERS_TEXT;
-                    } else if (numPlayersNeededForQuest > questMembers.length) {
-                        return STRINGS.NOT_ENOUGH_QUEST_MEMBERS;
-                    }
-                    return undefined;
-                })
-                .getOrUndefined())
+            .map(actualQuestConfigurations =>
+                NullableValue.of(currentQuest)
+                    .map(latestQuestAttempt => {
+                        const { roundNumber, leader } = latestQuestAttempt;
+                        if (actualQuestConfigurations.length < roundNumber) {
+                            return `Round ${roundNumber} ${STRINGS.DOES_NOT_EXIST}`;
+                        }
+                        const numPlayersNeededForQuest = actualQuestConfigurations[roundNumber - 1];
+                        const { questMembers } = this.state;
+                        if (leader !== myName) {
+                            return STRINGS.NOT_LEADER_TEXT;
+                        } else if (numPlayersNeededForQuest < questMembers.length) {
+                            return STRINGS.TOO_MANY_QUEST_MEMBERS_TEXT;
+                        } else if (numPlayersNeededForQuest > questMembers.length) {
+                            return STRINGS.NOT_ENOUGH_QUEST_MEMBERS;
+                        }
+                        return undefined;
+                    })
+                    .getOrUndefined(),
+            )
             .getOrUndefined();
     }
 
@@ -708,32 +708,31 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
                 this.setState({ questMembers: [] });
             });
         }
-    }
+    };
 
     private onVoteOnQuestProposal = (questAttempt: IQuestAttempt, vote: Vote) => () => {
         const { playerId, playerName } = this.props;
         this.services.gameService.voteOnProposal(questAttempt.id, playerId, playerName, vote);
-    }
+    };
 
     private onVoteOnQuest = (game: IGame, questAttempt: IQuestAttempt, vote: Vote) => () => {
         const { playerId, playerName } = this.props;
         const { myRole } = game;
         const { STRINGS } = UnconnectedGame;
         const { gameService, stateService } = this.services;
-        NullableValue.of(myRole)
-            .map(role => {
-                if (vote === Vote.FAIL && isGoodRole(role)) {
-                    stateService.showFailToast(STRINGS.GOOD_CANNOT_FAIL)
-                } else {
-                    gameService.voteOnQuest(questAttempt.id, playerId, playerName, vote);
-                }
-                return undefined;
-            });
-    }
+        NullableValue.of(myRole).map(role => {
+            if (vote === Vote.FAIL && isGoodRole(role)) {
+                stateService.showFailToast(STRINGS.GOOD_CANNOT_FAIL);
+            } else {
+                gameService.voteOnQuest(questAttempt.id, playerId, playerName, vote);
+            }
+            return undefined;
+        });
+    };
 
     private onUpdateSelectedPlayers = (selectedPlayers: string[]) => {
         this.setState({ questMembers: selectedPlayers });
-    }
+    };
 
     /**
      * Should never be called in practice since game will
@@ -748,7 +747,11 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
         const classes = classNames(Classes.SKELETON, styles.skeletonRow);
         return times(10, constant(0)).map((_val, idx) => {
             const style: CSSProperties = { width: `${random(50, 100)}%` };
-            return <div style={style} key={`skeleton-row-${idx}`} className={classes}>skeleton</div>
+            return (
+                <div style={style} key={`skeleton-row-${idx}`} className={classes}>
+                    skeleton
+                </div>
+            );
         });
     }
 
@@ -757,24 +760,24 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
         return CountableValue.of(roles)
             .map((role, idx) => {
                 const classes = classNames(styles.role, isGoodRole(role) ? styles.good : styles.bad);
-                return <div key={`${role}-${idx}`} className={classes}>{role}</div>
-            }).getValueOrDefault(
-                <NonIdealState
-                    title={STRINGS.GAME_NOT_STARTED}
-                    icon={IconNames.WARNING_SIGN}
-                />
-            );
-    }
+                return (
+                    <div key={`${role}-${idx}`} className={classes}>
+                        {role}
+                    </div>
+                );
+            })
+            .getValueOrDefault(<NonIdealState title={STRINGS.GAME_NOT_STARTED} icon={IconNames.WARNING_SIGN} />);
+    };
 
     private redirectToHome = () => {
         this.props.history.push(new JoinPath().getLocationDescriptor());
-    }
+    };
 
     private setAction = (action: GameAction) => () => this.services.stateService.setGameAction(action);
 
     private setDocumentTitleBasedOnQuestAttempt = (questAttempt: IQuestAttempt) => {
         this.services.stateService.setDocumentTitle(this.getTitleFOrQuestAttempt(questAttempt));
-    }
+    };
 
     private getTitleFOrQuestAttempt(questAttempt: IQuestAttempt) {
         const { status } = questAttempt;
@@ -818,7 +821,7 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
             default:
                 return assertNever(status);
         }
-    }
+    };
 
     private toastGameStatusChange(status: GameStatus) {
         const { stateService } = this.services;
@@ -841,8 +844,8 @@ export class UnconnectedGame extends React.PureComponent<GameProps, IState> {
     private getPlayerIdSupplier = (): Supplier<string | undefined> => {
         return {
             get: () => this.props.playerId,
-        }
-    }
+        };
+    };
 }
 
 const mapStateToProps = (appState: IApplicationState): IGameState => appState.gameState;
